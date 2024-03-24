@@ -1,0 +1,17 @@
+{
+    "rislive": {
+        "duration": 36000,
+        "clientId": "long-subscribe",
+        "onlyIpv4": false,
+        "filter": {
+            "host": "",
+            "type": "UPDATE",
+            "require": "announcements"
+        }
+    },
+    "validate_url": {
+        "scheme": "http",
+        "host": "172.19.220.163:8323",
+        "path": "validity"
+    }
+}
