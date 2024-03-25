@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/viper"
 
 	"bgpvalidator/internal/rislive"
+	"bgpvalidator/internal/validate"
 )
 
 var (
@@ -26,14 +27,19 @@ func subscribe(cmd *cobra.Command, args []string) {
 	onlyIPv4 := viper.Sub(RISLIVE_CONFIG).GetBool("onlyIpv4")
 	var filter *rislive.RisLiveClientMessageData
 	err := viper.Sub(RISLIVE_CONFIG).Sub("filter").Unmarshal(&filter)
-	if err != nil{
-		slog.Error(err.Error())
-		return 
-	}
-	handle ,err:= rislive.MakeRisLiveHandle(rislive.MakeRisLiveSubscribeUrl(clientId),filter,duration)
 	if err != nil {
 		slog.Error(err.Error())
-		return 
+		return
 	}
-	handle.Process(onlyIPv4)
+	handle, err := rislive.MakeRisLiveHandle(rislive.MakeRisLiveSubscribeUrl(clientId), filter, duration)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	scheme, host := viper.Sub(validateUrl).GetString("scheme"), viper.Sub(validateUrl).GetString("host")
+	path := viper.Sub(validateUrl).GetString("path")
+	validator := validate.MakeRoutinatorValidator(scheme, host, path)
+	if validator != nil{
+		handle.Process(onlyIPv4, validator)
+	}
 }

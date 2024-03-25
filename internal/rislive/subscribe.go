@@ -2,6 +2,7 @@
 package rislive
 
 import (
+	"bgpvalidator/internal/validate"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -211,7 +212,7 @@ func (handle *RisLiveHandle) receive(filter *RisLiveClientMessageData) {
 	}
 	for !handle.killed() {
 		var msg RisLiveMessage[RisLiveServerMessageData]
-		handle.conn.SetReadDeadline(time.Now().Add(time.Duration(10)*time.Second))
+		handle.conn.SetReadDeadline(time.Now().Add(time.Duration(10) * time.Second))
 		err := handle.conn.ReadJSON(&msg)
 		if err != nil {
 			slog.Info(err.Error())
@@ -249,9 +250,10 @@ func (handle *RisLiveHandle) killed() bool {
 }
 
 // 处理接收的消息
-func (handle *RisLiveHandle) Process(onlyIPv4 bool) {
+func (handle *RisLiveHandle) Process(onlyIPv4 bool, validator *validate.RoutinatorValidator) {
+	ipv4InvalidMp := make(map[string]int)
 	f, _ := os.Create("result")
-	f.WriteString("asn ip \n")
+	f.WriteString("asn ip moas\n")
 	for !handle.killed() {
 		var msg = <-handle.Channel
 		if msg.Type == "pong" { //pong消息忽略
@@ -259,10 +261,18 @@ func (handle *RisLiveHandle) Process(onlyIPv4 bool) {
 			continue
 		}
 		originAS := msg.Data.GetOriginAS()
-		prefixes := msg.Data.GetPrefixes(false)
+		prefixes := msg.Data.GetPrefixes(onlyIPv4)
 		if originAS != -1 {
 			for _, prefix := range prefixes {
-				f.WriteString(fmt.Sprintf("%d %s \n", originAS, prefix))
+				if !validator.Validate(strconv.Itoa(originAS), prefix) {
+					preOriginAs, ok := ipv4InvalidMp[prefix]
+					if !(preOriginAs == originAS) && !ok { //第一次出现的起源前缀对
+						ipv4InvalidMp[prefix] = originAS
+						f.WriteString(fmt.Sprintf("%d,%s,%v\n", originAS, prefix, ok))
+					}else{
+						f.WriteString(fmt.Sprintf("%d,%s,false\n", originAS, prefix))
+					}
+				}
 			}
 		}
 	}

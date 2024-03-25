@@ -3,7 +3,7 @@ package validate
 import "testing"
 
 func TestValidate(t *testing.T) {
-	r := NewRoutinatorValidator("http", "172.19.220.163:8323", "validity")
+	r := MakeRoutinatorValidator("http", "172.19.220.163:8323", "validity")
 	testcases := []struct {
 		inOriginAsn string
 		inPrefix    string
